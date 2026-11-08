@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audit Logs</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+
+        <div class="col-md-2 sidebar p-0">
+            <div class="sidebar-title">EmergencyConnectUAE</div>
+<div class="sidebar-subtitle">Emergency Coordination Platform</div>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/incidents">Incidents</a>
+            <a href="/resources">Resources</a>
+            <a href="/assignments">Assignments</a>
+            <a href="/dispatch">Smart Dispatch</a>
+            <a href="/reservations">Reservations</a>
+            <a href="/audit-logs">Audit Logs</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+
+        <div class="col-md-10 p-4">
+            <h2>Audit Logs</h2>
+            <p class="text-muted">Security and operational history for accountability.</p>
+
+            <div class="card card-stat p-4">
+                <h5>System Activity History</h5>
+
+                <table class="table table-hover">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Action</th>
+                        <th>Performed By</th>
+                        <th>Target</th>
+                        <th>Details</th>
+                        <th>Timestamp</th>
+                    </tr>
+                    </thead>
+                    <tbody id="auditTable"></tbody>
+                </table>
+
+                <p class="text-muted" id="paginationInfo"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem("jwt");
+if (!token) window.location.href = "/login";
+
+async function loadAuditLogs() {
+    const response = await fetch('/api/audit-logs?page=0&size=20', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    const data = await response.json();
+    const table = document.getElementById("auditTable");
+    table.innerHTML = "";
+
+    data.content.forEach(log => {
+        table.innerHTML += `
+            <tr>
+                <td>${log.id}</td>
+                <td><span class="badge bg-primary">${log.action}</span></td>
+                <td>${log.performedBy}</td>
+                <td>${log.targetType} #${log.targetId}</td>
+                <td>${log.details}</td>
+                <td>${log.timestamp}</td>
+            </tr>
+        `;
+    });
+
+    document.getElementById("paginationInfo").innerText =
+        `Page ${data.currentPage}, Size ${data.pageSize}, Total Records ${data.totalRecords}`;
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = "/login";
+}
+
+loadAuditLogs();
+</script>
+
+</body>
+</html>

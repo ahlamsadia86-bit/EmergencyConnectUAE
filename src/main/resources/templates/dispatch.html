@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Dispatch</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+
+        <div class="col-md-2 sidebar p-0">
+            <div class="sidebar-title">EmergencyConnectUAE</div>
+            <div class="sidebar-subtitle">Emergency Coordination Platform</div>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/incidents">Incidents</a>
+            <a href="/resources">Resources</a>
+            <a href="/assignments">Assignments</a>
+            <a href="/dispatch">Smart Dispatch</a>
+            <a href="/reservations">Reservations</a>
+            <a href="/audit-logs">Audit Logs</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+
+        <div class="col-md-10 p-4">
+            <h2>Smart Geo-Aware Dispatch</h2>
+            <p class="text-muted">
+                Bonus feature: production-style dispatch using live GPS location, incident priority, resource type, distance, and SLA response time.
+            </p>
+
+            <div class="row">
+
+                <div class="col-md-6">
+                    <div class="card card-stat p-4 mb-4">
+                        <h5>Update Resource Live GPS Location</h5>
+                        <p class="text-muted">Simulates ambulance/responder live location updates.</p>
+
+                        <input id="resourceIdLocation" class="form-control mb-2" type="number" placeholder="Resource ID">
+                        <input id="liveLocationName" class="form-control mb-2" placeholder="Area name e.g. Dubai Marina">
+                        <input id="liveLat" class="form-control mb-2" type="number" step="0.0001" placeholder="Latitude e.g. 25.0800">
+
+<input id="liveLon" class="form-control mb-2" type="number" step="0.0001" placeholder="Longitude e.g. 55.1400">
+
+<button onclick="useCurrentLocation()" class="btn btn-outline-primary w-100 mb-2">
+    Use Current Device Location
+</button>
+
+                        <div id="locationMessage" class="mt-3"></div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card card-stat p-4 mb-4">
+                        <h5>Suggest Best Emergency Resource</h5>
+                        <p class="text-muted">Uses nearest available matching unit and SLA rules.</p>
+
+                        <input id="incidentId" class="form-control mb-2" type="number" placeholder="Incident ID">
+
+                        <button onclick="suggestDispatch()" class="btn btn-success w-100">
+                            Suggest Best Resource
+                        </button>
+                        <button onclick="autoDispatch()" class="btn btn-danger w-100 mt-2">
+    Auto Dispatch Best Resource
+</button>
+
+                        <div id="dispatchMessage" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-stat p-4">
+                <h5>Dispatch Recommendation</h5>
+
+                <table class="table table-bordered mt-3">
+                    <tbody>
+                    <tr>
+                        <th>Incident</th>
+                        <td id="incidentInfo">-</td>
+                    </tr>
+                    <tr>
+                        <th>Required Resource Type</th>
+                        <td id="requiredType">-</td>
+                    </tr>
+                    <tr>
+                        <th>Suggested Resource</th>
+                        <td id="suggestedResource">-</td>
+                    </tr>
+                    <tr>
+                        <th>Distance</th>
+                        <td id="distance">-</td>
+                    </tr>
+                    <tr>
+                        <th>Estimated Response Time</th>
+                        <td id="responseTime">-</td>
+                    </tr>
+                    <tr>
+                        <th>SLA</th>
+                        <td id="sla">-</td>
+                    </tr>
+                    <tr>
+                        <th>Escalation Status</th>
+                        <td id="escalation">-</td>
+                    </tr>
+                    <tr>
+                        <th>Reason</th>
+                        <td id="reason">-</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem("jwt");
+if (!token) window.location.href = "/login";
+
+async function updateLiveLocation() {
+    const response = await fetch('/api/resources/' + document.getElementById("resourceIdLocation").value + '/location', {
+        method: 'PUT',
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem("jwt"),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            location: document.getElementById("liveLocationName").value,
+            latitude: Number(document.getElementById("liveLat").value),
+            longitude: Number(document.getElementById("liveLon").value)
+        })
+    });
+
+    if (response.ok) {
+        const data = await response.json();
+        document.getElementById("locationMessage").innerHTML =
+            `<span class="text-success">Live location updated for ${data.resourceName}.</span>`;
+    } else {
+        const error = await response.json();
+        document.getElementById("locationMessage").innerHTML =
+            `<span class="text-danger">${error.message}</span>`;
+    }
+}
+
+async function suggestDispatch() {
+    const response = await fetch('/api/dispatch/suggest', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem("jwt"),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            incidentId: Number(document.getElementById("incidentId").value)
+        })
+    });
+
+    if (response.ok) {
+        const data = await response.json();
+
+        document.getElementById("incidentInfo").innerText =
+            `${data.incidentTitle} (${data.incidentPriority}) - ${data.incidentLocation}`;
+
+        document.getElementById("requiredType").innerText =
+            data.requiredResourceType;
+
+        document.getElementById("suggestedResource").innerText =
+            `${data.suggestedResourceName} #${data.suggestedResourceId} (${data.resourceType}) - ${data.resourceLocation}`;
+
+        document.getElementById("distance").innerText =
+            data.distanceKm + " km";
+
+        document.getElementById("responseTime").innerText =
+            data.estimatedResponseMinutes + " minutes";
+
+        document.getElementById("sla").innerHTML =
+            data.slaMet
+                ? `<span class="badge bg-success">${data.slaLevel}</span>`
+                : `<span class="badge bg-danger">${data.slaLevel}</span>`;
+
+        document.getElementById("escalation").innerHTML =
+            data.slaMet
+                ? `<span class="badge bg-success">${data.escalationStatus}</span>`
+                : `<span class="badge bg-danger">${data.escalationStatus}</span>`;
+
+        document.getElementById("reason").innerText =
+            data.recommendationReason;
+
+        document.getElementById("dispatchMessage").innerHTML =
+            `<span class="text-success">Dispatch recommendation generated successfully.</span>`;
+    } else {
+        const error = await response.json();
+        document.getElementById("dispatchMessage").innerHTML =
+            `<span class="text-danger">${error.message}</span>`;
+    }
+}
+
+function useCurrentLocation() {
+
+    if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+
+        function(position) {
+
+            document.getElementById("liveLat").value =
+                position.coords.latitude;
+
+            document.getElementById("liveLon").value =
+                position.coords.longitude;
+
+            document.getElementById("locationMessage").innerHTML =
+                "<span class='text-success'>Live GPS coordinates detected automatically.</span>";
+        },
+
+        function(error) {
+
+            document.getElementById("locationMessage").innerHTML =
+                "<span class='text-danger'>Unable to retrieve device location.</span>";
+        }
+    );
+}
+
+async function autoDispatch() {
+    const response = await fetch('/api/dispatch/auto', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem("jwt"),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            incidentId: Number(document.getElementById("incidentId").value),
+            assignedByUserId: Number(prompt("Enter your user ID for assignment:"))
+        })
+    });
+
+    if (response.ok) {
+        const data = await response.json();
+
+        document.getElementById("dispatchMessage").innerHTML =
+            `<span class="text-success">${data.message}</span>`;
+
+        document.getElementById("incidentInfo").innerText =
+            `Incident #${data.incidentId} (${data.priority})`;
+
+        document.getElementById("suggestedResource").innerText =
+            `${data.assignedResourceName} #${data.assignedResourceId}`;
+
+        document.getElementById("distance").innerText =
+            data.distanceKm + " km";
+
+        document.getElementById("responseTime").innerText =
+            data.estimatedResponseMinutes + " minutes";
+
+        document.getElementById("sla").innerHTML =
+            data.slaMet
+                ? `<span class="badge bg-success">${data.slaLevel}</span>`
+                : `<span class="badge bg-danger">${data.slaLevel}</span>`;
+
+        document.getElementById("escalation").innerHTML =
+            data.slaMet
+                ? `<span class="badge bg-success">${data.escalationStatus}</span>`
+                : `<span class="badge bg-danger">${data.escalationStatus}</span>`;
+
+        document.getElementById("reason").innerText =
+            "Resource was automatically assigned using priority, region, live GPS distance, and SLA rules.";
+
+    } else {
+        const error = await response.json();
+        document.getElementById("dispatchMessage").innerHTML =
+            `<span class="text-danger">${error.message}</span>`;
+    }
+}
+function logout() {
+    localStorage.clear();
+    window.location.href = "/login";
+}
+</script>
+
+</body>
+</html>

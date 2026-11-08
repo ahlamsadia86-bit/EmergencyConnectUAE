@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emergency Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+
+        <div class="col-md-2 sidebar p-0">
+            <div class="sidebar-title">EmergencyConnectUAE</div>
+            <div class="sidebar-subtitle">Emergency Coordination Platform</div>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/incidents">Incidents</a>
+            <a href="/resources">Resources</a>
+            <a href="/assignments">Assignments</a>
+            <a href="/dispatch">Smart Dispatch</a>
+            <a href="/reservations">Reservations</a>
+            <a href="/audit-logs">Audit Logs</a>
+            <a href="/operations">Operations</a>
+            
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+
+        <div class="col-md-10 p-4">
+            <h2>Emergency Operations Dashboard</h2>
+            <p class="text-muted">Real-time Redis-cached summary of incidents and resources.</p>
+
+            <div class="row mt-4">
+                <div class="col-md-4 mb-3">
+                    <div class="card card-stat p-4">
+                        <h6>Open Incidents</h6>
+                        <h2 id="openIncidents">0</h2>
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <div class="card card-stat p-4">
+                        <h6>In Progress</h6>
+                        <h2 id="inProgressIncidents">0</h2>
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <div class="card card-stat p-4">
+                        <h6>Resolved Incidents</h6>
+                        <h2 id="resolvedIncidents">0</h2>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="card card-stat p-4">
+                        <h6>Available Resources</h6>
+                        <h2 id="availableResources">0</h2>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="card card-stat p-4">
+                        <h6>Assigned Resources</h6>
+                        <h2 id="assignedResources">0</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-stat p-4 mt-3">
+                <h5>Active Incidents</h5>
+                <p class="text-muted">Cached from Redis using <code>/api/dashboard/active-incidents</code></p>
+                <table class="table table-hover">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Location</th>
+                    </tr>
+                    </thead>
+                    <tbody id="activeIncidentsTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem("jwt");
+
+if (!token) {
+    window.location.href = "/login";
+}
+
+async function loadDashboard() {
+    const response = await fetch('/api/dashboard/summary', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        return;
+    }
+
+    const data = await response.json();
+
+    document.getElementById("openIncidents").innerText = data.openIncidents;
+    document.getElementById("inProgressIncidents").innerText = data.inProgressIncidents;
+    document.getElementById("resolvedIncidents").innerText = data.resolvedIncidents;
+    document.getElementById("availableResources").innerText = data.availableResources;
+    document.getElementById("assignedResources").innerText = data.assignedResources;
+}
+
+async function loadActiveIncidents() {
+    const response = await fetch('/api/dashboard/active-incidents', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    const data = await response.json();
+    const table = document.getElementById("activeIncidentsTable");
+    table.innerHTML = "";
+
+    data.forEach(i => {
+        table.innerHTML += `
+            <tr>
+                <td>${i.id}</td>
+                <td>${i.title}</td>
+                <td><span class="badge ${priorityClass(i.priority)}">${i.priority}</span></td>
+                <td>${i.status}</td>
+                <td>${i.location}</td>
+            </tr>
+        `;
+    });
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = "/login";
+}
+
+function priorityClass(priority) {
+    if (priority === "CRITICAL") return "priority-critical";
+    if (priority === "HIGH") return "priority-high";
+    if (priority === "MEDIUM") return "priority-medium";
+    if (priority === "LOW") return "priority-low";
+    return "bg-secondary";
+}
+loadDashboard();
+loadActiveIncidents();
+</script>
+
+</body>
+</html>
