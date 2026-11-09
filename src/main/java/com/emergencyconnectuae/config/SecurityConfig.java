@@ -1,4 +1,9 @@
 package com.emergencyconnectuae.config;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.List;
 
 import com.emergencyconnectuae.security.JwtAuthFilter;
 import com.emergencyconnectuae.security.RateLimitFilter;
@@ -42,6 +47,7 @@ this.customAccessDeniedHandler = customAccessDeniedHandler;
 
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .exceptionHandling(ex -> ex
                         .accessDeniedHandler(customAccessDeniedHandler)
                 )
@@ -104,6 +110,29 @@ this.customAccessDeniedHandler = customAccessDeniedHandler;
                 return http.build();
 
     }
+    @Value("${app.security.allowed-origin}")
+private String allowedOrigin;
+
+@Bean
+public CorsConfigurationSource corsConfigurationSource() {
+
+    CorsConfiguration configuration = new CorsConfiguration();
+
+    configuration.setAllowedOrigins(List.of(allowedOrigin));
+    configuration.setAllowedMethods(
+            List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+    );
+    configuration.setAllowedHeaders(List.of("*"));
+    configuration.setAllowCredentials(true);
+    configuration.setMaxAge(3600L);
+
+    UrlBasedCorsConfigurationSource source =
+            new UrlBasedCorsConfigurationSource();
+
+    source.registerCorsConfiguration("/**", configuration);
+
+    return source;
+}
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
